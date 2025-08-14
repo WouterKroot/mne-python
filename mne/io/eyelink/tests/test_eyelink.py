@@ -200,7 +200,6 @@ def test_bino_to_mono(tmp_path, fname):
     """Test a file that switched from binocular to monocular mid-recording."""
     out_file = tmp_path / "tmp_eyelink.asc"
     in_file = Path(fname)
-
     lines = in_file.read_text("utf-8").splitlines()
     # We'll also add some binocular velocity data to increase our testing coverage.
     start_idx = [li for li, line in enumerate(lines) if line.startswith("START")][0]
@@ -507,7 +506,7 @@ def test_href_eye_events(tmp_path):
     """Test Parsing file where Eye Event Data option was set to 'HREF'."""
     out_file = tmp_path / "tmp_eyelink.asc"
     lines = fname_href.read_text("utf-8").splitlines()
-    breakpoint()
+    
     for li, line in enumerate(lines):
         if not line.startswith(("ESACC", "EFIX")):
             continue
@@ -515,9 +514,8 @@ def test_href_eye_events(tmp_path):
         if line.startswith("ESACC"):
             href_sacc_vals = ["9999", "9999", "9999", "9999", "99.99", "999"]
             tokens[5:5] = href_sacc_vals  # add href saccade values
-            print(f"\nLine {li}: {line}")
-            print(f"Tokens ({len(tokens)}): {tokens}")
-  
+            # print(f"\nLine {li}: {line}")
+            # print(f"Tokens ({len(tokens)}): {tokens}")
         elif line.startswith("EFIX"):
             tokens = line.split()
             href_fix_vals = ["9999.9", "9999.9", "999"]
@@ -525,9 +523,8 @@ def test_href_eye_events(tmp_path):
         new_line = "\t".join(tokens) + "\n"
         lines[li] = new_line
     out_file.write_text("\n".join(lines), encoding="utf-8")
-    breakpoint()
+    
     raw = read_raw_eyelink(out_file)
-    #breakpoint()
-    # # Just check that we actually parsed the Saccade and Fixation events
-    # assert "saccade" in raw.annotations.description
-    # assert "fixation" in raw.annotations.description
+    # Just check that we actually parsed the Saccade and Fixation events
+    assert "saccade" in raw.annotations.description
+    assert "fixation" in raw.annotations.description

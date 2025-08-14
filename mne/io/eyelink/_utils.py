@@ -407,7 +407,7 @@ def _create_dataframes_for_block(block, apply_offsets):
         for entry in button_events:
             parsed.append(
                 {
-                    "onset": float(entry[0]),
+                    "time": float(entry[0]), #onset
                     "button_id": int(entry[1]),
                     "button_pressed": int(entry[2]),  # 1 = press, 0 = release
                 }
@@ -516,7 +516,6 @@ def _combine_block_dataframes(processed_blocks: list[dict]):
 
     for df_type in all_df_types:
         block_dfs = []
-
         for block in processed_blocks:
             if df_type in block["dfs"]:
                 # We will update the dfs in-place to conserve memory
@@ -579,21 +578,32 @@ def _assign_col_names(col_names, df_dict):
         Dictionary of dataframes to assign column names to.
     """
     skipped_types = []
-    breakpoint()
     for key, df in df_dict.items():
-        print(df.head())  # debug
-        print(df.shape)
-        print(df)
-        if key in ("samples", "blinks", "fixations", "saccades"):
-            print(f"Key: {key}, df columns: {df.shape[1]}, expected: {len(col_names[key])}") #debug
-            df.columns = col_names[key]
-        elif key == "messages":
-            cols = ["time", "offset", "event_msg"]
-            df.columns = cols
-        #added for buttons
-        elif key == "buttons":
-            cols = ["time", "button_id", "button_pressed"]
-            df.columns = cols
+        if key in ("samples", "blinks", "fixations", "saccades", "messages"):
+            cols = col_names[key]
+        else:
+            skipped_types.append(key)
+            continue
+        max_cols = len(cols)
+        if len(df.columns) != len(cols):
+            if key in ("saccades", "fixations") and len(df.columns) >= 4:
+                # see https://github.com/mne-tools/mne-python/pull/13357
+                logger.debug(
+                    f"{key} events have more columns ({len(df.columns)}) than  "
+                    f"expected ({len(cols)}). Using first 4 (eye, time, end_time, "
+                    "duration)."
+                )
+                max_cols = 4
+            else:
+                raise ValueError(
+                    f"Expected the {key} data in this file to have {len(cols)} columns "
+                    f"of data, but got {len(df.columns)}. Expected columns: {cols}."
+                )
+        new_col_names = {
+            old: new for old, new in zip(df.columns[:max_cols], cols[:max_cols])
+        }
+        df.rename(columns=new_col_names, inplace=True)
+    logger.debug(f"Skipped assigning column names to {skipped_types} dataframes.")
     return df_dict
 
 
@@ -883,7 +893,7 @@ def _make_eyelink_annots(df_dict, create_annots, apply_offsets):
                 descriptions = "BAD_" + descriptions
            
             ch_names = df["eye"].map(eye_ch_map).tolist()
-            breakpoint()  # debug
+            #breakpoint()  # debug
             this_annot = Annotations(
                 onset=onsets,
                 duration=durations,
